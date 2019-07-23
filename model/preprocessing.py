@@ -16,7 +16,7 @@ def create_windows(df, window_size, step_size=1, target=None) -> np.array:
             t.append(t_col[i + window_size - 1])
         i += step_size
     windows = np.array(windows)
-    t = np.array(t)
+    t = np.array(t).reshape(-1, 1)
     if target:
         return windows, t
     else:
