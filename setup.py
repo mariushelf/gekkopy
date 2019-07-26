@@ -1,6 +1,7 @@
 from setuptools import setup
 import os
 from os import path
+from gekkopy import version
 
 name = "gekkopy"
 description = "Python API for Gekko trading bot"
@@ -42,6 +43,6 @@ setup(
         "matplotlib",
         "pandas",
     ],
-    version='0.0.1',
+    version=version.__version__,
     packages=packages
 )
