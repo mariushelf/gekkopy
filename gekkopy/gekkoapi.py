@@ -10,6 +10,7 @@ api = "http://localhost:3000/api"
 
 def get(endpoint):
     res = requests.get(f"{api}/{endpoint}")
+    res.raise_for_status()
     return res.json()
 
 
