@@ -7,7 +7,7 @@ import requests
 
 
 class GekkoClient:
-    def __init__(self, url):
+    def __init__(self, url="http://localhost:3000"):
         self.url = url
         self.api = f"{url}/api"
 
