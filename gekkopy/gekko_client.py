@@ -49,7 +49,7 @@ class GekkoClient:
 
         return dataranges
 
-    def _build_backtest_config(
+    def build_backtest_config(
         self,
         exchange,
         asset,
@@ -60,6 +60,35 @@ class GekkoClient:
         date_start=None,
         date_end=None,
     ):
+        """ Helper function to create the configuration for a backtest  from a few
+        simple input parameters.
+        Can be passed to the :meth:`.backtest` function
+
+        Parameters
+        ----------
+        exchange
+            on which exchange to backtest
+        asset
+            asset
+        currency
+            currency
+        candlesize
+            candlesize
+        strategy
+            name of gekko strategy
+        strat_config
+            dictionary with strategy config
+        date_start
+            start date as iso string or python date
+        date_end
+            start date as iso string or python date
+
+        Returns
+        -------
+        dict
+            configuration dictionary
+
+        """
         cfg_template = {
             "watch": {},
             "paperTrader": {
@@ -204,6 +233,36 @@ class GekkoClient:
         return jdf
 
     def backtest(self, config, short_ratio=0.0):
+        """ Run a backtest on gekko and calculate statistics.
+
+        Parameters
+        ----------
+        config
+            configuration dictionary as constructec by :meth:`.build_backtest_config`.
+        short_ratio
+            Ignored at the moment.
+
+            Experimental feature.
+            Specifies how much of your budget to keep in a short
+            order. E.g., if 0.5, half of the budget is always in a short order,
+            effectively opening a net short position when Gekko goes "short", and
+            then again yielding only 50% profit when Gekko is "long" (because the
+            short order persists).
+
+            This is a way to work around Gekko's inability to create native short
+            positions.
+
+        Returns
+        -------
+        report : Dict
+            performance report as returned by Gekko
+        jdf : pd.DataFrame
+            joint dataframe with all information over time
+        profits : pd.DataFrame
+            profit per month for market ("HODL") and the strategy under test
+
+
+        """
         res = self.post("backtest", config)
 
         roundtrips = pd.DataFrame(res["roundtrips"])
@@ -260,6 +319,17 @@ class GekkoClient:
         return report, jdf, profits
 
     def plot_stats(self, jdf, profit_per_month) -> matplotlib.figure.Figure:
+        """ Create a figure from the output of :meth:`.backtest`.
+
+        Parameters
+        ----------
+        jdf
+        profit_per_month
+
+        Returns
+        -------
+
+        """
         fig, axes = plt.subplots(4, 1, figsize=(20, 25))
         axidx = 0
         alpha = 0.4
