@@ -6,6 +6,7 @@ from flask import Flask, request, abort
 
 app = Flask("strat_server")
 
+
 def _try_get_strat(name):
     try:
         return StratServer.get(name)
@@ -19,7 +20,7 @@ def window_size(strat_name):
     return {"window_size": strat.window_size()}
 
 
-@app.route("/strats/<strat_name>/advice", methods=['POST'])
+@app.route("/strats/<strat_name>/advice", methods=["POST"])
 def advice(strat_name):
     """ Creates a recommendations for the data in the request body.
 
@@ -41,14 +42,15 @@ def advice(strat_name):
     strat = _try_get_strat(strat_name)
     raw_data = request.get_json()
     data = np.array(raw_data)
-    return {'advice': strat.advice(data)}
+    return {"advice": strat.advice(data)}
 
 
-class AbstractStrategy:
-    BUY = 'buy'
-    SELL = 'sell'
-    HOLD = 'hold'
+class Strategy:
+    """ Abstract class template for serving strategies. """
 
+    BUY = "buy"
+    SELL = "sell"
+    HOLD = "hold"
 
     @abstractmethod
     def window_size(self):
@@ -57,7 +59,7 @@ class AbstractStrategy:
         raise NotImplementedError
 
     @abstractmethod
-    def advice(self, data: np.array) -> Dict[str, Any]:
+    def advice(self, data):
         """ Create a recommended action for the given data.
 
         Must create a single prediction for the *last* candle in the input.
@@ -84,15 +86,16 @@ class AbstractStrategy:
 
 class StratServer:
     """ Class that manages strategies and starts the webserver."""
+
     strats = {}
 
     @classmethod
-    def register(cls, name: str, strat: AbstractStrategy):
+    def register(cls, name: str, strat: Strategy):
         """ Registers a strategy. """
         cls.strats[name] = strat
 
     @classmethod
-    def get(cls, name: str) -> Optional[AbstractStrategy]:
+    def get(cls, name: str) -> Optional[Strategy]:
         """ Retrieves a strategy """
         if name in cls.strats:
             return cls.strats[name]

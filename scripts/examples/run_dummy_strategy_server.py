@@ -1,8 +1,8 @@
-from gekkopy.server import AbstractStrategy, StratServer
+from gekkopy.server import Strategy, StratServer
 import numpy as np
 
 
-class DummyStrategy(AbstractStrategy):
+class DummyStrategy(Strategy):
     """ Strategy that creates random advice, just to demo how to implement the
     interface. """
 
