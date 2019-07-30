@@ -18,31 +18,27 @@ def read(filename):
 if os.path.exists("README.md"):
     long_description = read("README.md")
 
-packages = ['gekkopy']
+packages = ["gekkopy"]
 url = "https://github.com/mariushelf/gekkopy"
 author = "Marius Helf"
 author_email = "helfsmarius@gmail.com"
 classifiers = [
-    'Development Status :: 3',
-    'Natural Language :: English',
-    'Operating System :: OS Independent',
-    'Programming Language :: Python :: 3',
+    "Development Status :: 3",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
 ]
 
 setup(
     name=name,
     description=description,
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     author=author,
     url=url,
     author_email=author_email,
     classifiers=classifiers,
-    install_requires=[
-        "requests",
-        "matplotlib",
-        "pandas",
-    ],
+    install_requires=["requests", "matplotlib", "pandas", "flask", "numpy"],
     version=version.__version__,
-    packages=packages
+    packages=packages,
 )
