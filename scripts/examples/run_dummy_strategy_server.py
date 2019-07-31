@@ -1,4 +1,4 @@
-from gekkopy.server import Strategy, StratServer
+from gekkopy.serving import Strategy, StratServer
 import numpy as np
 
 
