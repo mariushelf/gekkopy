@@ -17,7 +17,7 @@ class Strategy:
     @abstractmethod
     def window_size(self):
         """ Return the window size of the strategy, i.e., how many candles the
-         strategy needs to make a prediction. """
+         strategy needs to make a single prediction. """
         raise NotImplementedError
 
     @abstractmethod
@@ -36,12 +36,14 @@ class Strategy:
 
         Returns
         -------
-        recommendation: Dict[str, Any]
-            recommendation. Must-have keys:
+        advice: Dict[str, Any] or str
+            Either a string with value being one of
+            Strategy.HOLD, Strategy.LONG, Strategy.SHORT, or a dictionary with at least
+            the following keys:
 
-            * 'action': one of 'buy', 'sell', 'hold'
+            * 'action': one of Strategy.HOLD, Strategy.LONG, Strategy.SHORT
 
-            Additional keys can be added, but don't have a special function.
+            Additional keys can be added and will be returned to the caller.
         """
         raise NotImplementedError
 
@@ -110,7 +112,10 @@ def advice(strat_name):
     strat = _try_get_strat(strat_name)
     raw_data = request.get_json()
     data = np.array(raw_data)
-    return {"advice": strat.advice(data)}
+    advice = strat.advice(data)
+    if isinstance(advice, str):
+        advice = {"advice": advice}
+    return advice
 
 
 def _try_get_strat(name):
