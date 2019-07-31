@@ -1,0 +1,2 @@
+# a dot indicates to read the dependencies from the setup.py
+.
