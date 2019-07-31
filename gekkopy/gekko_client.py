@@ -177,63 +177,6 @@ class GekkoClient:
         cfg["backtest"]["daterange"]["to"] = date_end.isoformat()
         return cfg
 
-    def assemble_joint_df(self, jdf, report, short_ratio: float = 0.0) -> pd.DataFrame:
-        """ Assemble a pandas DataFrame from the output of :meth:`.backtest` with
-        all information and some calculated statistics.
-
-        Parameters
-        ----------
-        jdf
-            jdf as returned by :meth:`.backtest`
-        report
-            report as returned by :meth:`.backtest`
-        short_ratio
-            Experimental feature.
-            Specifies how much of your budget to keep in a short
-            order. E.g., if 0.5, half of the budget is always in a short order,
-            effectively opening a net short position when Gekko goes "short", and
-            then again yielding only 50% profit when Gekko is "long" (because the
-            short order persists).
-
-            This is a way to work around Gekko's inability to create native short
-            positions.
-
-        Returns
-        -------
-        joint:
-            DataFrame with a lot of nice info and stats :)
-
-        """
-        start_price = report["startPrice"]
-        start_balance = report["startBalance"]
-        jdf["lastAction"] = jdf.action.ffill()
-        jdf["lastAmount"] = jdf.amount.ffill()
-        jdf["lastBalance"] = jdf.balance.ffill()
-        jdf["profit"] = (jdf.close / start_price).diff()
-        jdf["profit"] = jdf.apply(
-            lambda row: row.profit * (1 - short_ratio)
-            if row.lastAction == "buy"
-            else (-row.profit * short_ratio if row.lastAction == "sell" else 0),
-            axis=1,
-        )
-        jdf["cumProfit"] = 1 + jdf.profit.cumsum()
-        jdf["currentBalance"] = jdf.apply(
-            lambda row: row["lastBalance"]
-            if row["lastAction"] == "sell"
-            else row["lastAmount"] * row["open"],
-            axis=1,
-        ).fillna(report["startBalance"])
-        jdf["marketP"] = jdf.close / start_price
-        jdf["stratP"] = jdf.currentBalance / start_balance
-        jdf["marketMax"] = jdf.marketP.cummax()
-        jdf["stratMax"] = jdf.stratP.cummax()
-        jdf["profitMax"] = jdf.cumProfit.cummax()
-        jdf["marketDrawdown"] = -(1 - jdf.marketP / jdf.marketMax)
-        jdf["stratDrawdown"] = -(1 - jdf.stratP / jdf.stratMax)
-        jdf["profitDrawdown"] = -(1 - jdf.cumProfit / jdf.profitMax)
-        jdf["date"] = jdf.index
-        return jdf
-
     def backtest(self, config):
         """ Run a backtest on gekko and calculate statistics.
 
@@ -253,7 +196,7 @@ class GekkoClient:
             
         See Also
         --------
-        * :meth:`.assemble_joint_df`
+        * :meth:`._assemble_joint_df`
         * :meth:`.plot_stats`
         * :meth:`.build_backtest_config`
         """
@@ -277,36 +220,17 @@ class GekkoClient:
         indicators.columns = [f"ind_{c}" for c in indicators.columns]
 
         report = res["performanceReport"]
+        report["startPrice"] = candles["close"].iloc[0]
 
         jdf = (
             candles.join(indicators)
             .join(trades)
             .join(roundtrips.set_index("entryAt")[["entryBalance"]])
             .join(roundtrips.set_index("exitAt")[["exitBalance"]])
+            .pipe(self._assemble_joint_df, report)
         )
+        profits = self._profit_per_month(jdf)
 
-        report["startPrice"] = candles["close"].iloc[0]
-
-        # Profits
-        def first(df):
-            return df.iloc[0, :]
-
-        def last(df):
-            return df.iloc[-1, :]
-
-        groups = jdf[["currentBalance", "close", "cumProfit"]].groupby(
-            pd.Grouper(freq="M")
-        )
-        firsts = groups.apply(first)
-        lasts = groups.apply(last)
-        firsts.columns = [f"f{c}" for c in firsts.columns]
-        lasts.columns = [f"l{c}" for c in lasts.columns]
-        profits = pd.concat([firsts, lasts], axis=1)
-        profits.index = [d.date() for d in profits.index]
-        profits["marketProfit"] = (profits.lclose - profits.fclose) / profits.fclose
-        profits["stratProfit"] = (
-            profits.lcurrentBalance - profits.fcurrentBalance
-        ) / profits.fcurrentBalance
         return report, jdf, profits
 
     def plot_stats(self, jdf, profit_per_month) -> matplotlib.figure.Figure:
@@ -352,9 +276,10 @@ class GekkoClient:
         ax.set_title("market")
         ax.grid()
 
-        # Profits
+        # Profits per month
         axidx += 1
         ax = axes[axidx]
+        ax.set_title('Profit per month')
         profit_per_month[["marketProfit", "stratProfit"]].plot.bar(ax=ax)
         ax.set_xticklabels(
             ax.get_xticklabels(), rotation=45, horizontalalignment="right"
@@ -389,13 +314,13 @@ class GekkoClient:
             alpha=alpha,
         )
         ax.set_yscale("log")
-        ax.set_title("profit")
+        ax.set_title("relative profit")
         ax.grid()
 
         # Drawdown
         axidx += 1
         ax = axes[axidx]
-        jdf[["marketDrawdown", "stratDrawdown", "profitDrawdown"]].plot(ax=ax)
+        jdf[["marketDrawdown", "stratDrawdown"]].plot(ax=ax)
         ax.set_title("drawdown")
         ax.grid()
         fig.tight_layout()
@@ -505,3 +430,81 @@ class GekkoClient:
             date_end = pd.to_datetime(date_end)
 
         return {"from": date_start.isoformat(), "to": date_end.isoformat()}
+
+    @staticmethod
+    def _profit_per_month(jdf):
+        # Profits
+        def first(df):
+            return df.iloc[0, :]
+
+        def last(df):
+            return df.iloc[-1, :]
+
+        groups = jdf[["currentBalance", "close"]].groupby(pd.Grouper(freq="M"))
+        firsts = groups.apply(first)
+        lasts = groups.apply(last)
+        firsts.columns = [f"f{c}" for c in firsts.columns]
+        lasts.columns = [f"l{c}" for c in lasts.columns]
+        profits = pd.concat([firsts, lasts], axis=1)
+        profits.index = [d.date() for d in profits.index]
+        profits["marketProfit"] = (profits.lclose - profits.fclose) / profits.fclose
+        profits["stratProfit"] = (
+            profits.lcurrentBalance - profits.fcurrentBalance
+        ) / profits.fcurrentBalance
+        return profits
+
+    @staticmethod
+    def _assemble_joint_df(jdf, report, short_ratio: float = 0.0) -> pd.DataFrame:
+        """ Assemble a pandas DataFrame from the output of :meth:`.backtest` with
+        all information and some calculated statistics.
+
+        Parameters
+        ----------
+        jdf
+            jdf as returned by :meth:`.backtest`
+        report
+            report as returned by :meth:`.backtest`
+        short_ratio
+            Experimental feature.
+            Specifies how much of your budget to keep in a short
+            order. E.g., if 0.5, half of the budget is always in a short order,
+            effectively opening a net short position when Gekko goes "short", and
+            then again yielding only 50% profit when Gekko is "long" (because the
+            short order persists).
+
+            This is a way to work around Gekko's inability to create native short
+            positions.
+
+        Returns
+        -------
+        joint:
+            DataFrame with a lot of nice info and stats :)
+
+        """
+        start_price = report["startPrice"]
+        start_balance = report["startBalance"]
+        jdf["lastAction"] = jdf.action.ffill()
+        jdf["lastAmount"] = jdf.amount.ffill()
+        jdf["lastBalance"] = jdf.balance.ffill()
+
+        jdf["profit"] = (jdf.close / start_price).diff()
+        jdf["profit"] = jdf.apply(
+            lambda row: row.profit * (1 - short_ratio)
+            if row.lastAction == "buy"
+            else (-row.profit * short_ratio if row.lastAction == "sell" else 0),
+            axis=1,
+        )
+        jdf["currentBalance"] = jdf.apply(
+            lambda row: row["lastBalance"]
+            if row["lastAction"] == "sell"
+            else row["lastAmount"] * row["close"],
+            axis=1,
+        ).fillna(report["startBalance"])
+        jdf["marketP"] = jdf.close / start_price
+        jdf["stratP"] = jdf.currentBalance / start_balance
+        jdf["marketMax"] = jdf.marketP.cummax()
+        jdf["stratMax"] = jdf.stratP.cummax()
+        jdf["marketDrawdown"] = -(1 - jdf.marketP / jdf.marketMax)
+        jdf["stratDrawdown"] = -(1 - jdf.stratP / jdf.stratMax)
+        jdf["date"] = jdf.index
+        return jdf
