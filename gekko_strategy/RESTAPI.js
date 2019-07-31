@@ -1,4 +1,9 @@
-// const _ = require('lodash');
+/**
+ * Author: Marius Helf
+ *
+ * RESTAPI strategy to be used in combination with GekkoPy:
+ * https://github.com/mariushelf/gekkopy
+ */
 const request = require('sync-request');
 const log = require('../core/log.js');
 
