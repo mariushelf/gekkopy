@@ -22,7 +22,7 @@ class DummyStrategy(Strategy):
             return self.HOLD
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dummy_strat = DummyStrategy()
-    StratServer.register('dummy', dummy_strat)
+    StratServer.register("dummy", dummy_strat)
     StratServer.start(debug=True)

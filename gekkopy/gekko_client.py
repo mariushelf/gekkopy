@@ -279,7 +279,7 @@ class GekkoClient:
         # Profits per month
         axidx += 1
         ax = axes[axidx]
-        ax.set_title('Profit per month')
+        ax.set_title("Profit per month")
         profit_per_month[["marketProfit", "stratProfit"]].plot.bar(ax=ax)
         ax.set_xticklabels(
             ax.get_xticklabels(), rotation=45, horizontalalignment="right"
