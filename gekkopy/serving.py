@@ -4,52 +4,6 @@ from typing import Dict, Any, Optional
 import numpy as np
 from flask import Flask, request, abort
 
-app = Flask("strat_server")
-
-
-def _try_get_strat(name):
-    try:
-        return StratServer.get(name)
-    except KeyError:
-        abort(404)
-
-
-@app.route("/strats/<strat_name>/window_size")
-def window_size(strat_name):
-    strat = _try_get_strat(strat_name)
-    return {"window_size": strat.window_size()}
-
-
-@app.route("/strats/<strat_name>/protocol_version")
-def protocol_version(strat_name):
-    strat = _try_get_strat(strat_name)
-    return {"protocol_version": strat.protocol_version()}
-
-
-@app.route("/strats/<strat_name>/advice", methods=["POST"])
-def advice(strat_name):
-    """ Creates a recommendations for the data in the request body.
-
-    Expects request data of mimetype application/json. Data must be a dictionary
-    with the following keys:
-
-    * ``data``: list of lists, where each row contains the 6 values for
-      [open, high, low, close, volume, avg_weighted_price].
-
-    Returns:
-    ========
-    advice
-        Dictionary with mandatory keys:
-
-        * ``advice``: one of "long", "short" or "hold"
-
-    The strategy may add additional keys.
-     """
-    strat = _try_get_strat(strat_name)
-    raw_data = request.get_json()
-    data = np.array(raw_data)
-    return {"advice": strat.advice(data)}
-
 
 class Strategy:
     """ Abstract class template for serving strategies. """
@@ -101,6 +55,8 @@ class Strategy:
 class StratServer:
     """ Class that manages strategies and starts the webserver."""
 
+    app = Flask("strat_server")
+
     strats = {}
 
     @classmethod
@@ -118,4 +74,48 @@ class StratServer:
     @classmethod
     def start(cls, debug=False, host="localhost", port=2626):
         """ Starts the flask server. Default port is 2626 on localhost. """
-        app.run(debug=debug, host=host, port=port)
+        cls.app.run(debug=debug, host=host, port=port)
+
+
+@StratServer.app.route("/strats/<strat_name>/window_size")
+def window_size(strat_name):
+    strat = _try_get_strat(strat_name)
+    return {"window_size": strat.window_size()}
+
+
+@StratServer.app.route("/strats/<strat_name>/protocol_version")
+def protocol_version(strat_name):
+    strat = _try_get_strat(strat_name)
+    return {"protocol_version": strat.protocol_version()}
+
+
+@StratServer.app.route("/strats/<strat_name>/advice", methods=["POST"])
+def advice(strat_name):
+    """ Creates a recommendations for the data in the request body.
+
+    Expects request data of mimetype application/json. Data must be a dictionary
+    with the following keys:
+
+    * ``data``: list of lists, where each row contains the 6 values for
+      [open, high, low, close, volume, avg_weighted_price].
+
+    Returns:
+    ========
+    advice
+        Dictionary with mandatory keys:
+
+        * ``advice``: one of "long", "short" or "hold"
+
+    The strategy may add additional keys.
+     """
+    strat = _try_get_strat(strat_name)
+    raw_data = request.get_json()
+    data = np.array(raw_data)
+    return {"advice": strat.advice(data)}
+
+
+def _try_get_strat(name):
+    try:
+        return StratServer.get(name)
+    except KeyError:
+        abort(404)
