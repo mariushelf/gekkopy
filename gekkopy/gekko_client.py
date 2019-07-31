@@ -11,19 +11,48 @@ class GekkoClient:
         self.url = url
         self.api = f"{url}/api"
 
-    def get(self, endpoint):
+    def get(self, endpoint: str):
+        """ Send GET request to Gekko and return parsed JSON.
+
+        Parameters
+        ----------
+        endpoint
+            which endpoint to call, excluding `/api`
+
+        Returns
+        -------
+        response:
+            response as parsed JSON
+        """
         res = requests.get(f"{self.api}/{endpoint}")
         res.raise_for_status()
         return res.json()
 
     def post(self, endpoint, request=None):
+        """ Send POST request to Gekko and return parsed JSON.
+
+        Parameters
+        ----------
+        endpoint
+            which endpoint to call, excluding `/api`
+        request
+            data to add to the POST request as JSON
+
+        Returns
+        -------
+        response:
+            response as parsed JSON
+
+        """
         if request is None:
             request = {}
         res = requests.post(f"{self.api}/{endpoint}", json=request)
         res.raise_for_status()
         return res.json()
 
-    def pull_dataranges(self):
+    def pull_dataranges(self) -> pd.DataFrame:
+        """ Pulls data ranges from Gekko. This is what you see at the top of Gekko's
+        `Backtest` page. """
         data = self.post("scansets")
         dataranges = pd.DataFrame(data["datasets"])
         dataranges = (
@@ -126,7 +155,8 @@ class GekkoClient:
             ]
             if len(dr) == 0:
                 raise ValueError(
-                    f"no data ranges match specified exchange/asset/currency combination ({asset}/{currency}@{exchange})"
+                    f"no data ranges match specified exchange/asset/currency "
+                    f"combination ({asset}/{currency}@{exchange})"
                 )
             if date_start is None:
                 date_start = dr.iloc[0, :]["from"]
@@ -147,61 +177,33 @@ class GekkoClient:
         cfg["backtest"]["daterange"]["to"] = date_end.isoformat()
         return cfg
 
-    def assemble_daterange(
-        self,
-        date_start=None,
-        date_end=None,
-        exchange=None,
-        asset=None,
-        currency=None,
-        dataranges=None,
-    ) -> Dict[str, str]:
-        """ Create daterange dictionary. Auto-impute date_start and date_end to maximum
-        range.
+    def assemble_joint_df(self, jdf, report, short_ratio: float = 0.0) -> pd.DataFrame:
+        """ Assemble a pandas DataFrame from the output of :meth:`.backtest` with
+        all information and some calculated statistics.
 
         Parameters
         ----------
-        date_start
-        date_end
-        exchange
-            used to auto-impute date range
-        asset
-            used to auto-impute date range
-        currency
-            used to auto-impute date range
-        dataranges
-            dataranges as returned by :func:`.pull_dataranges`. If None, this function
-            pulls them directly from Gekko
+        jdf
+            jdf as returned by :meth:`.backtest`
+        report
+            report as returned by :meth:`.backtest`
+        short_ratio
+            Experimental feature.
+            Specifies how much of your budget to keep in a short
+            order. E.g., if 0.5, half of the budget is always in a short order,
+            effectively opening a net short position when Gekko goes "short", and
+            then again yielding only 50% profit when Gekko is "long" (because the
+            short order persists).
+
+            This is a way to work around Gekko's inability to create native short
+            positions.
 
         Returns
         -------
+        joint:
+            DataFrame with a lot of nice info and stats :)
 
         """
-        if date_start is None or date_end is None:
-            if dataranges is None:
-                dataranges = self.pull_dataranges()
-            dataranges = dataranges[
-                (dataranges.exchange == exchange)
-                & (dataranges.asset == asset)
-                & (dataranges.currency == currency)
-            ]
-            if len(dataranges) == 0:
-                raise ValueError(
-                    f"no data ranges match specified exchange/asset/currency combination "
-                    f"({asset}/{currency}@{exchange})"
-                )
-            if date_start is None:
-                date_start = dataranges.iloc[0, :]["from"]
-            if date_end is None:
-                date_end = dataranges.iloc[0, :]["to"]
-        if date_start is not None:
-            date_start = pd.to_datetime(date_start)
-        if date_end is not None:
-            date_end = pd.to_datetime(date_end)
-
-        return {"from": date_start.isoformat(), "to": date_end.isoformat()}
-
-    def assemble_joint_df(self, jdf, short_ratio, report):
         start_price = report["startPrice"]
         start_balance = report["startBalance"]
         jdf["lastAction"] = jdf.action.ffill()
@@ -232,25 +234,13 @@ class GekkoClient:
         jdf["date"] = jdf.index
         return jdf
 
-    def backtest(self, config, short_ratio=0.0):
+    def backtest(self, config):
         """ Run a backtest on gekko and calculate statistics.
 
         Parameters
         ----------
         config
             configuration dictionary as constructec by :meth:`.build_backtest_config`.
-        short_ratio
-            Ignored at the moment.
-
-            Experimental feature.
-            Specifies how much of your budget to keep in a short
-            order. E.g., if 0.5, half of the budget is always in a short order,
-            effectively opening a net short position when Gekko goes "short", and
-            then again yielding only 50% profit when Gekko is "long" (because the
-            short order persists).
-
-            This is a way to work around Gekko's inability to create native short
-            positions.
 
         Returns
         -------
@@ -260,8 +250,12 @@ class GekkoClient:
             joint dataframe with all information over time
         profits : pd.DataFrame
             profit per month for market ("HODL") and the strategy under test
-
-
+            
+        See Also
+        --------
+        * :meth:`.assemble_joint_df`
+        * :meth:`.plot_stats`
+        * :meth:`.build_backtest_config`
         """
         res = self.post("backtest", config)
 
@@ -313,9 +307,6 @@ class GekkoClient:
         profits["stratProfit"] = (
             profits.lcurrentBalance - profits.fcurrentBalance
         ) / profits.fcurrentBalance
-        profits["cumcumProfit"] = (
-            profits.lcumProfit - profits.fcumProfit
-        ) / profits.fcumProfit
         return report, jdf, profits
 
     def plot_stats(self, jdf, profit_per_month) -> matplotlib.figure.Figure:
@@ -364,13 +355,7 @@ class GekkoClient:
         # Profits
         axidx += 1
         ax = axes[axidx]
-        profit_per_month[
-            [
-                "marketProfit",
-                "stratProfit",
-                #         'cumcumProfit'
-            ]
-        ].plot.bar(ax=ax)
+        profit_per_month[["marketProfit", "stratProfit"]].plot.bar(ax=ax)
         ax.set_xticklabels(
             ax.get_xticklabels(), rotation=45, horizontalalignment="right"
         )
@@ -380,13 +365,7 @@ class GekkoClient:
         # Strategy
         axidx += 1
         ax = axes[axidx]
-        jdf[
-            [
-                "marketP",
-                "stratP",
-                #         'cumProfit'
-            ]
-        ].plot(ax=ax)
+        jdf[["marketP", "stratP"]].plot(ax=ax)
         jdf[jdf.action == "buy"].plot(
             x="date",
             y="stratP",
@@ -413,19 +392,50 @@ class GekkoClient:
         ax.set_title("profit")
         ax.grid()
 
-        # Downside
+        # Drawdown
         axidx += 1
         ax = axes[axidx]
         jdf[["marketDrawdown", "stratDrawdown", "profitDrawdown"]].plot(ax=ax)
         ax.set_title("drawdown")
         ax.grid()
-        plt.tight_layout()
+        fig.tight_layout()
 
         return fig
 
     def pull_candles(
-        self, exchange, asset, currency, candlesize, date_start=None, date_end=None
+        self,
+        exchange: str,
+        asset: str,
+        currency: str,
+        candlesize: int,
+        date_start: str = None,
+        date_end: str = None,
     ) -> pd.DataFrame:
+        """ Pull candles from Gekko for the given exchange, asset, currency and
+        date range.
+
+        Parameters
+        ----------
+        exchange
+            name of the exchange as in return of :meth:`.pull_dataranges`
+        asset
+            name of the asset
+        currency
+            name of the currency
+        candlesize
+            candlesize in minutes
+        date_start: anything that can be parsed by pd.to_datetime
+            first date for which to retrieve data.
+            If None, will be imputed via :meth:`.assemble_daterange`
+
+        date_end: anything that can be parsed by pd.to_datetime
+            last date for which to retrieve data.
+            If None, will be imputed via :meth:`.assemble_daterange`
+
+        Returns
+        -------
+
+        """
         req = {
             "watch": {"exchange": exchange, "asset": asset, "currency": currency},
             "daterange": self.assemble_daterange(
@@ -436,3 +446,62 @@ class GekkoClient:
         res = self.post("getCandles", req)
         candles = pd.DataFrame(res)
         return candles
+
+    def assemble_daterange(
+        self,
+        date_start=None,
+        date_end=None,
+        exchange=None,
+        asset=None,
+        currency=None,
+        dataranges=None,
+    ) -> Dict[str, str]:
+        """ Create daterange dictionary. If date_start or date_end is None, auto-impute
+        to maximum range of the first entry in `dataranges` that matches `exchange`,
+        `asset` and `currency`. If only one of them `date_start`, `date_end` is given,
+        it must be in the first matching entry from `dataranges`.
+
+        Parameters
+        ----------
+        date_start: anything that can be parsed by pd.to_datetime
+            first date which is part of
+        date_end: anything that can be parsed by pd.to_datetime
+        exchange
+            used to auto-impute date range
+        asset
+            used to auto-impute date range
+        currency
+            used to auto-impute date range
+        dataranges
+            dataranges as returned by :func:`.pull_dataranges`. If None, this function
+            pulls them directly from Gekko
+
+        Returns
+        -------
+        daterange: Dict[str, str]
+            Dictionary with keys `from`, `to` with provided or imputed dates in
+            isoformat as values.
+        """
+        if date_start is None or date_end is None:
+            if dataranges is None:
+                dataranges = self.pull_dataranges()
+            dataranges = dataranges[
+                (dataranges.exchange == exchange)
+                & (dataranges.asset == asset)
+                & (dataranges.currency == currency)
+            ]
+            if len(dataranges) == 0:
+                raise ValueError(
+                    f"no data ranges match specified exchange/asset/currency combination "
+                    f"({asset}/{currency}@{exchange})"
+                )
+            if date_start is None:
+                date_start = dataranges.iloc[0, :]["from"]
+            if date_end is None:
+                date_end = dataranges.iloc[0, :]["to"]
+        if date_start is not None:
+            date_start = pd.to_datetime(date_start)
+        if date_end is not None:
+            date_end = pd.to_datetime(date_end)
+
+        return {"from": date_start.isoformat(), "to": date_end.isoformat()}
