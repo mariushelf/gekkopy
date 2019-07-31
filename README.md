@@ -3,9 +3,6 @@
 Python library to interact with the Gekko trading bot found at
 https://github.com/askmike/gekko.
 
-# Author
-
-Marius Helf
 
 # Installation and Requirements
 
@@ -30,7 +27,7 @@ data = gekko.pull_candles(
     date_start='2019-01-01', date_end='2019-06-01')
 ```
 
-## Backtesting your Strategy
+## Backtesting a Gekko Strategy from Python code
 
 ```python
 from gekkopy.gekko_client import GekkoClient
@@ -84,7 +81,7 @@ print(report)
 gekko.plot_stats(jdf, profits, figsize=(10,10));
 ```
 
-# Running Python Strategies in Gekko
+# Running a Python Strategy in Gekko
 
 1. implement the [`Strategy`](gekkopy/serving.py) class
 2. register your class with the [`StratServer`](gekkopy/serving.py)
@@ -137,6 +134,11 @@ change the last part of the url to `dummy`.
 ```toml
 url = "http://localhost:2626/strats/dummy"  # no trailing slash!
 ```
+
+
+# Author
+
+Marius Helf
 
 # Source Code
 
