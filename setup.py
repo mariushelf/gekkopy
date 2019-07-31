@@ -27,6 +27,8 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Office/Business :: Financial :: Investment",
 ]
 
 setup(
@@ -41,4 +43,5 @@ setup(
     install_requires=["requests", "matplotlib", "pandas", "flask", "numpy"],
     version=version.__version__,
     packages=packages,
+    license="MIT",
 )
