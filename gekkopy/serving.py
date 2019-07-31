@@ -73,7 +73,7 @@ class StratServer:
         raise KeyError(f"No strategy with name {name} is registered")
 
     @classmethod
-    def start(cls, debug=False, host="localhost", port=2626):
+    def start(cls, host="localhost", port=2626, debug=False):
         """ Starts the flask server. Default port is 2626 on localhost. """
         cls.app.run(debug=debug, host=host, port=port)
 

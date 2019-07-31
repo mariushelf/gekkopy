@@ -25,4 +25,4 @@ class DummyStrategy(Strategy):
 if __name__ == "__main__":
     dummy_strat = DummyStrategy()
     StratServer.register("dummy", dummy_strat)
-    StratServer.start(debug=True)
+    StratServer.start('localhost', port=2626, debug=True)
