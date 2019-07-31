@@ -45,7 +45,6 @@ class Strategy:
         """
         raise NotImplementedError
 
-    @abstractmethod
     def protocol_version(self):
         """ Protocol version. Should be 1 at the moment. Might be increased in later
         version of the framework to indicate API changes. """
