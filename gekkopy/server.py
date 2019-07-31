@@ -20,6 +20,12 @@ def window_size(strat_name):
     return {"window_size": strat.window_size()}
 
 
+@app.route("/strats/<strat_name>/protocol_version")
+def protocol_version(strat_name):
+    strat = _try_get_strat(strat_name)
+    return {"protocol_version": strat.protocol_version()}
+
+
 @app.route("/strats/<strat_name>/advice", methods=["POST"])
 def advice(strat_name):
     """ Creates a recommendations for the data in the request body.
@@ -35,7 +41,7 @@ def advice(strat_name):
     advice
         Dictionary with mandatory keys:
 
-        * ``advice``: one of 'buy', 'sell', 'hold'
+        * ``advice``: one of "long", "short" or "hold"
 
     The strategy may add additional keys.
      """
@@ -48,9 +54,11 @@ def advice(strat_name):
 class Strategy:
     """ Abstract class template for serving strategies. """
 
-    BUY = "buy"
-    SELL = "sell"
+    LONG = "long"
+    SHORT = "short"
     HOLD = "hold"
+
+    COLUMNS = ["open", "high", "low", "close", "volume", "trades"]
 
     @abstractmethod
     def window_size(self):
@@ -82,6 +90,12 @@ class Strategy:
             Additional keys can be added, but don't have a special function.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def protocol_version(self):
+        """ Protocol version. Should be 1 at the moment. Might be increased in later
+        version of the framework to indicate API changes. """
+        return 1
 
 
 class StratServer:

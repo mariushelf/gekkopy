@@ -15,9 +15,9 @@ class DummyStrategy(Strategy):
     def advice(self, data):
         cond = np.ceil(np.sum(data)) % 3
         if cond == 1:
-            return self.BUY
+            return self.LONG
         elif cond == 2:
-            return self.SELL
+            return self.SHORT
         else:
             return self.HOLD
 
