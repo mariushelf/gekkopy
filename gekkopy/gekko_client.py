@@ -233,19 +233,26 @@ class GekkoClient:
 
         return report, jdf, profits
 
-    def plot_stats(self, jdf, profit_per_month) -> matplotlib.figure.Figure:
+    def plot_stats(
+        self, jdf, profit_per_month, figsize=(20, 25)
+    ) -> matplotlib.figure.Figure:
         """ Create a figure from the output of :meth:`.backtest`.
 
         Parameters
         ----------
         jdf
+            as returned by :meth:`.backtest`
         profit_per_month
+            as returned by :meth:`.backtest`
+        figsize
+            matplotlib figsize for the whole plot
 
         Returns
         -------
-
+        fig
+            a matplotlib figure
         """
-        fig, axes = plt.subplots(4, 1, figsize=(20, 25))
+        fig, axes = plt.subplots(4, 1, figsize=figsize)
         axidx = 0
         alpha = 0.4
 
@@ -281,9 +288,12 @@ class GekkoClient:
         ax = axes[axidx]
         ax.set_title("Profit per month")
         profit_per_month[["marketProfit", "stratProfit"]].plot.bar(ax=ax)
+        ax.legend(['market', 'strategy'])
         ax.set_xticklabels(
             ax.get_xticklabels(), rotation=45, horizontalalignment="right"
         )
+        vals = ax.get_yticks()
+        ax.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
         ax.axhline(0, c="black", lw=1.5)
         ax.grid()
 
@@ -315,13 +325,17 @@ class GekkoClient:
         )
         ax.set_yscale("log")
         ax.set_title("relative profit")
+        ax.legend(['market', 'strategy'])
         ax.grid()
 
         # Drawdown
         axidx += 1
         ax = axes[axidx]
         jdf[["marketDrawdown", "stratDrawdown"]].plot(ax=ax)
+        vals = ax.get_yticks()
+        ax.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
         ax.set_title("drawdown")
+        ax.legend(['market', 'strategy'])
         ax.grid()
         fig.tight_layout()
 
