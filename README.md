@@ -80,19 +80,23 @@ print(report)
 # visualize backtest
 gekko.plot_stats(jdf, profits, figsize=(10,10));
 ```
+Open the [run-backtest notebook](notebooks/run-backtest.ipynb) to see the 
+visualizations.
 
 # Running a Python Strategy in Gekko
 
-1. implement the [`Strategy`](gekkopy/serving.py) class
-2. register your class with the [`StratServer`](gekkopy/serving.py)
-3. start the `StartServer`
-4. copy the [`RESTAPI.js`](gekko_strategy/RESTAPI.js) strategy into the `strategies` 
-   folder of your Gekko installation
-5. copy the [`RESTAPI.toml`](gekko_strategy/RESTAPI.toml) configuration into the 
-   `config/strageies` folder of your Gekko installation
-6. run the strategy from the Gekko UI. Just make sure to adjust the URL to your
-   StratServer and make sure that the last part of the `url` config field
-   matches the name under which you registered your strategy.
+1. In Python
+    1. implement the [`Strategy`](gekkopy/serving.py) class
+    2. register your class with the [`StratServer`](gekkopy/serving.py)
+    3. start the `StratServer`
+2. In Gekko
+    1. copy the [`RESTAPI.js`](gekko_strategy/RESTAPI.js) strategy into the `strategies` 
+       folder of your Gekko installation
+    2. copy the [`RESTAPI.toml`](gekko_strategy/RESTAPI.toml) configuration into the 
+       `config/strageies` folder of your Gekko installation
+    3. run the strategy from the Gekko UI. Just make sure to adjust the URL to your
+       StratServer and make sure that the last part of the `url` config field
+       matches the name under which you registered your strategy.
    
 ## Example
 Here's an [example](scripts/examples/run_dummy_strategy_server.py) of a dummy strategy:
